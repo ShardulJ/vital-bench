@@ -1,6 +1,5 @@
 # VitalBench build & launch manual
 
-Four weeks, part-time, alongside the job search. Total cash cost: $5-15.
 
 ## Week 1 — Core loop working end to end
 - Get synth -> runner -> judge -> stats running with 20 scenarios and one free
