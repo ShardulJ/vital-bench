@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: vitalbench
+Version: 0.1.0
+Summary: Evaluation benchmark for LLMs interpreting wearable physiological data
+Requires-Python: >=3.10
+Requires-Dist: numpy
+Requires-Dist: pydantic>=2
+Provides-Extra: judges
+Requires-Dist: anthropic; extra == "judges"
+Requires-Dist: openai; extra == "judges"

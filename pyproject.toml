@@ -1,0 +1,16 @@
+[project]
+name = "vitalbench"
+version = "0.1.0"
+description = "Evaluation benchmark for LLMs interpreting wearable physiological data"
+requires-python = ">=3.10"
+dependencies = ["numpy", "pydantic>=2"]
+
+[project.optional-dependencies]
+judges = ["anthropic", "openai"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

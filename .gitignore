@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.judge_cache/
+results/*.jsonl
+finetune/adapters_*/
+finetune/qwen-vital/
+.venv/
