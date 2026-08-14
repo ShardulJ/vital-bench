@@ -46,19 +46,32 @@ def judge_validation(judge_scores: dict[str, int], human_scores: dict[str, int])
     }
 
 
-def report(scored_path: Path):
-    per_axis = defaultdict(list)
-    per_condition = defaultdict(lambda: defaultdict(list))
-    passes = []
+def _load_scored(scored_path: Path) -> dict[str, dict]:
+    """scenario_id -> {axis: score, ..., overall_pass: bool, condition: str},
+    skipping rubric-validation failures."""
+    out = {}
     for line in scored_path.read_text().splitlines():
         rec = json.loads(line)
         s = rec.get("scores", {})
         if "error" in s:
             continue
+        entry = {ax: s[ax]["score"] for ax in AXES}
+        entry["overall_pass"] = s["overall_pass"]
+        entry["condition"] = rec.get("condition", "?")
+        out[rec["scenario_id"]] = entry
+    return out
+
+
+def report(scored_path: Path):
+    scored = _load_scored(scored_path)
+    per_axis = defaultdict(list)
+    per_condition = defaultdict(lambda: defaultdict(list))
+    passes = []
+    for entry in scored.values():
         for ax in AXES:
-            per_axis[ax].append(s[ax]["score"])
-            per_condition[rec.get("condition", "?")][ax].append(s[ax]["score"])
-        passes.append(1.0 if s["overall_pass"] else 0.0)
+            per_axis[ax].append(entry[ax])
+            per_condition[entry["condition"]][ax].append(entry[ax])
+        passes.append(1.0 if entry["overall_pass"] else 0.0)
 
     print(f"\n{'axis':<15}{'mean':>6}{'95% CI':>18}")
     for ax in AXES:
@@ -73,11 +86,45 @@ def report(scored_path: Path):
         print(f"  {cond:<20}{m:.2f}  [{lo:.2f}, {hi:.2f}]  n={len(axes['safety'])}")
 
 
+def _agreement_table(title: str, a: dict[str, dict], b: dict[str, dict]):
+    print(f"\n{title}")
+    print(f"{'axis':<15}{'n':>5}{'kappa':>8}{'exact':>8}{'within1':>9}")
+    for ax in AXES + ["overall_pass"]:
+        av = {k: int(v[ax]) for k, v in a.items()}
+        bv = {k: int(v[ax]) for k, v in b.items()}
+        res = judge_validation(av, bv)
+        print(f"{ax:<15}{res['n']:>5}{res['kappa']:>8.2f}{res['exact_agreement']:>8.2%}{res['within_one']:>9.2%}")
+
+
+def calibration_report(scored_path: Path, human_path: Path):
+    from .calibration import load_human_labels
+    judge = _load_scored(scored_path)
+    human = load_human_labels(human_path)
+    if not human:
+        print(f"no completed labels in {human_path} yet")
+        return
+    _agreement_table(f"judge ({scored_path.name}) vs human calibration ({len(human)} labeled)", judge, human)
+
+
+def agreement_report(scored_a: Path, scored_b: Path):
+    a = _load_scored(scored_a)
+    b = _load_scored(scored_b)
+    _agreement_table(f"judge agreement: {scored_a.name} vs {scored_b.name}", a, b)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scored", type=Path, required=True)
+    ap.add_argument("--scored", type=Path, required=True, help="scored jsonl from judge.py")
+    ap.add_argument("--calibrate", type=Path, help="human calibration labels (from calibration.py); reports judge-vs-human kappa")
+    ap.add_argument("--agreement", type=Path, help="second scored jsonl; reports judge-vs-judge kappa against --scored")
     args = ap.parse_args()
-    report(args.scored)
+
+    if args.calibrate:
+        calibration_report(args.scored, args.calibrate)
+    elif args.agreement:
+        agreement_report(args.scored, args.agreement)
+    else:
+        report(args.scored)
 
 
 if __name__ == "__main__":
