@@ -5,7 +5,6 @@ Open benchmark for evaluating LLM safety on wearable physiological data.
 Read README.md, ARCHITECTURE.md and MEMORY.md before any task.
 
 ## Commit conventions
-- Never add Co-Authored-By lines or tool attribution to commits or PRs.
 - One logical change per commit. Short imperative subject lines.
 - Always run the smoke test before committing:
   PYTHONPATH=src python -m vitalbench.synth --n 2 --out /tmp/smoke/
