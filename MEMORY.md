@@ -10,7 +10,7 @@ Every strategy implements the same `MemoryStrategy` interface (ARCHITECTURE.md
 
 ## 1. The problem, concretely
 
-A year of daily wearable summaries is ~150-400K tokens serialized naively —
+A year of daily wearable summaries is ~150-400K tokens serialized naively -
 beyond most small-model context windows, and even where it fits, models
 degrade on long contexts (lost-in-the-middle effects) and cost scales
 linearly. Conversations add facts that never appear in the data stream
@@ -21,18 +21,18 @@ a **write policy** (what to remember), a **store** (how to hold it), a
 
 ## 2. Strategies under test
 
-### M0 — Full context (upper-bound baseline)
+### M0 - Full context (upper-bound baseline)
 Everything, serialized, most recent last. Only feasible for short horizons or
 long-context API models. Establishes the ceiling and the cost curve.
 
-### M1 — Sliding window + rolling summary
+### M1 - Sliding window + rolling summary
 Keep last N days raw; everything older is folded into a running summary that
 is *rewritten* (not appended) each week by the model itself.
 - Write: append day; weekly, compress oldest week into the summary.
 - Failure mode probed: rewriting loses specifics (exact dates, the disclosed
-  injury), and errors compound — summary-of-summary drift.
+  injury), and errors compound - summary-of-summary drift.
 
-### M2 — Structured profile memory (schema-first)
+### M2 - Structured profile memory (schema-first)
 An explicit typed store the model writes to via extraction after every
 observation/conversation:
 
@@ -52,41 +52,41 @@ class Fact(BaseModel):
 ```
 
 - Write: LLM extraction into the schema; numeric baselines updated by plain
-  code (no LLM — cheaper and exact).
+  code (no LLM - cheaper and exact).
 - Read: whole profile always ships (it's small); that's the point.
 - Key design element: **facts have lifecycle status.** Resolution ("knee feels
-  fine now") flips status instead of deleting — supports staleness probes and
+  fine now") flips status instead of deleting - supports staleness probes and
   auditability.
 - Failure mode probed: extraction misses implicit facts; schema can't hold
   what it didn't anticipate.
 
-### M3 — Episodic retrieval (RAG over the past)
+### M3 - Episodic retrieval (RAG over the past)
 Every day-summary and conversation turn is chunked and embedded (small CPU
-sentence-transformers model, SQLite + numpy — no vector DB). At read time,
+sentence-transformers model, SQLite + numpy - no vector DB). At read time,
 retrieve top-k by a blended score:
 
 ```
 score = α·cosine(query, chunk) + β·recency_decay(age) + γ·salience(chunk)
 ```
 
-salience is set at write time (abnormal days score higher — deviation from
+salience is set at write time (abnormal days score higher - deviation from
 baseline in σ units), so a routine Tuesday ranks below the day HRV cratered.
 - Failure mode probed: interference (retrieves the wrong illness), and the
-  trend-blindness of chunk retrieval — episodic memory sees trees, not forests.
+  trend-blindness of chunk retrieval - episodic memory sees trees, not forests.
 
-### M4 — Hierarchical temporal memory (summaries at multiple resolutions)
+### M4 - Hierarchical temporal memory (summaries at multiple resolutions)
 Days roll into week summaries, weeks into month summaries; all levels are
 retained. Reads assemble coarse-to-fine: months for background, weeks for the
 recent past, raw days for the immediate window. This mirrors how coaches
 actually reason ("a rough month, a better fortnight, a bad yesterday").
 - Failure mode probed: whether multi-resolution beats M1's single rolling
-  summary at equal token budget — the cleanest ablation pair in the study.
+  summary at equal token budget - the cleanest ablation pair in the study.
 
-### M5 — Agentic memory (model-managed via tools)
+### M5 - Agentic memory (model-managed via tools)
 The coach gets `remember(fact)`, `recall(query)`, `update_status(fact_id)`
 tools and decides for itself what to store and fetch. The most 2026-shaped
 design and the least controllable; included because everyone claims it works
-and few measure it — especially for <=3B models, where tool-call reliability
+and few measure it - especially for <=3B models, where tool-call reliability
 is itself in question.
 
 ## 3. Context assembly (shared machinery)
@@ -99,7 +99,7 @@ Assembly is where most quality is won or lost, independent of store choice:
    never truncates mid-item.
 2. **Time-series serialization.** Raw JSON per day is ~40 tokens/metric-day of
    waste. Instead: recent days as a compact aligned table; older periods as
-   computed statistics (mean, trend slope, notable deviations) — *code*
+   computed statistics (mean, trend slope, notable deviations) - *code*
    computes these, the model never re-derives arithmetic it will get wrong.
    Downsampling schedule: last 7 days raw, last 8 weeks weekly, older monthly.
 3. **Placement against lost-in-the-middle.** Standing facts and safety-critical
@@ -123,27 +123,27 @@ For each (strategy × budget ∈ {2K, 6K, 16K} × model):
 - write-time overhead (extraction/summarization calls per day)
 
 Hypotheses stated before running (pre-registration, in this file's git
-history — models can be wrong in public, that's the credibility play):
+history - models can be wrong in public, that's the credibility play):
 - H1: M2 (structured) dominates on staleness and contradiction probes at all
   budgets, because lifecycle status is explicit.
 - H2: M3 (episodic) wins recall but loses trend probes to M4 at equal budget.
 - H3: M5 (agentic) underperforms its reputation for <=3B models due to
   tool-call reliability, and the gap closes with model scale.
 - H4: assembly placement (§3.3) alone moves safety scores by a measurable
-  margin holding the store constant — context engineering matters as much as
+  margin holding the store constant - context engineering matters as much as
   memory architecture.
 
 ## 5. Build order
 
-1. `memory/base.py` (interface, AssembledContext) + M0 + M1 — one afternoon.
-2. lifesim event log + the five probe families + RubricV2 — the real work; do
+1. `memory/base.py` (interface, AssembledContext) + M0 + M1 - one afternoon.
+2. lifesim event log + the five probe families + RubricV2 - the real work; do
    this before adding more strategies, because probes define what "better"
    means.
 3. M2, then M3 (reuse sentence-transformers from apply_job), then M4.
 4. M5 last, only if tool-calling in the chosen small models is stable enough
    to measure rather than babysit.
 5. Ablation runs are overnight jobs on the Mac; the grid is sampled (not every
-   cell) — report which cells ran.
+   cell) - report which cells ran.
 
 ## 6. Honest limitations (keep in the writeup)
 
