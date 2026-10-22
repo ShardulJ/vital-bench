@@ -2,7 +2,7 @@
 
 ## Project
 Open benchmark for evaluating LLM safety on wearable physiological data.
-Read README.md and BUILD_GUIDE.md before any task.
+Read README.md, ARCHITECTURE.md and MEMORY.md before any task.
 
 ## Commit conventions
 - Never add Co-Authored-By lines or tool attribution to commits or PRs.
