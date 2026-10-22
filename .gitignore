@@ -5,3 +5,4 @@ results/*.jsonl
 finetune/adapters_*/
 finetune/qwen-vital/
 .venv/
+CLAUDE.md
